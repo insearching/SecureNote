@@ -3,18 +3,18 @@ package com.securenote;
 import android.app.Activity;
 import android.app.KeyguardManager;
 import android.content.Intent;
-import android.content.SharedPreferences;
+import android.graphics.pdf.PdfRenderer;
 import android.hardware.fingerprint.FingerprintManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
+import android.os.ParcelFileDescriptor;
 import android.provider.Settings;
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyPermanentlyInvalidatedException;
 import android.security.keystore.KeyProperties;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AlertDialog;
-import android.util.Log;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import java.io.IOException;
@@ -27,35 +27,43 @@ import java.security.NoSuchProviderException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 
-import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.KeyGenerator;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
+
+import butterknife.BindView;
+import butterknife.ButterKnife;
+import timber.log.Timber;
+
 
 public class LoginActivity extends Activity implements FingerprintViewInterface {
 
     static final String DEFAULT_KEY_NAME = "default_key";
 
-    private static final String TAG = LoginActivity.class.getSimpleName();
-
     private static final String DIALOG_FRAGMENT_TAG = "myFragment";
 
-    private static final String SECRET_MESSAGE = "Very secret message";
+    private static final String FILE_NAME = "sample.pdf";
 
-    private static final String KEY_NAME_NOT_INVALIDATED = "key_not_invalidated";
+    @BindView(R.id.pdf_view)
+    ImageView mImageView;
 
     private KeyStore mKeyStore;
 
     private KeyGenerator mKeyGenerator;
 
-    private SharedPreferences mSharedPreferences;
+    private ParcelFileDescriptor mFileDescriptor;
+
+    private PdfRenderer mPdfRenderer;
+
+    private PdfRenderer.Page mCurrentPage;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
+
+        ButterKnife.bind(this);
 
         try {
             mKeyStore = KeyStore.getInstance("AndroidKeyStore");
@@ -68,8 +76,6 @@ public class LoginActivity extends Activity implements FingerprintViewInterface 
         } catch (NoSuchAlgorithmException | NoSuchProviderException e) {
             throw new RuntimeException("Failed to get an instance of KeyGenerator", e);
         }
-
-        mSharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
 
         KeyguardManager keyguardManager = getSystemService(KeyguardManager.class);
         FingerprintManager fingerprintManager = getSystemService(FingerprintManager.class);
@@ -109,15 +115,15 @@ public class LoginActivity extends Activity implements FingerprintViewInterface 
 
             return;
         }
+
         createKey(DEFAULT_KEY_NAME, true);
-        createKey(KEY_NAME_NOT_INVALIDATED, false);
-
-
     }
 
     @Override
-    protected void onResume() {
-        super.onResume();
+    protected void onStart() {
+        super.onStart();
+        Timber.i("onStart");
+
         Cipher defaultCipher;
 
         try {
@@ -131,7 +137,7 @@ public class LoginActivity extends Activity implements FingerprintViewInterface 
 
     }
 
-    private void startSecuritySettings(){
+    private void startSecuritySettings() {
         startActivityForResult(new Intent(Settings.ACTION_SECURITY_SETTINGS), 0);
     }
 
@@ -167,38 +173,7 @@ public class LoginActivity extends Activity implements FingerprintViewInterface 
     public void onLoggedIn(boolean withFingerprint,
                            @Nullable FingerprintManager.CryptoObject cryptoObject) {
         if (withFingerprint) {
-            // If the user has authenticated with fingerprint, verify that using cryptography and
-            // then show the confirmation message.
-            assert cryptoObject != null;
-            tryEncrypt(cryptoObject.getCipher());
-        } else {
-            // Authentication happened with backup password. Just show the confirmation message.
-            showConfirmation(null);
-        }
-    }
-
-    // Show confirmation, if fingerprint was used show crypto information.
-    private void showConfirmation(byte[] encrypted) {
-        if (encrypted != null) {
             Toast.makeText(this, "Login successful!", Toast.LENGTH_LONG).show();
-//            TextView v = (TextView) findViewById(R.id.encrypted_message);
-//            v.setVisibility(View.VISIBLE);
-//            v.setText(Base64.encodeToString(encrypted, 0 /* flags */));
-        }
-    }
-
-    /**
-     * Tries to encrypt some data with the generated key in {@link #createKey} which is
-     * only works if the user has just authenticated via fingerprint.
-     */
-    private void tryEncrypt(Cipher cipher) {
-        try {
-            byte[] encrypted = cipher.doFinal(SECRET_MESSAGE.getBytes());
-            showConfirmation(encrypted);
-        } catch (BadPaddingException | IllegalBlockSizeException e) {
-            Toast.makeText(this, "Failed to encrypt the data with the generated key. "
-                    + "Retry the purchase", Toast.LENGTH_LONG).show();
-            Log.e(TAG, "Failed to encrypt the data with the generated key." + e.getMessage());
         }
     }
 
@@ -259,17 +234,11 @@ public class LoginActivity extends Activity implements FingerprintViewInterface 
             FingerprintAuthenticationDialogFragment fragment
                     = new FingerprintAuthenticationDialogFragment();
             fragment.setCryptoObject(new FingerprintManager.CryptoObject(cipher));
-            boolean useFingerprintPreference = mSharedPreferences
-                    .getBoolean(getString(R.string.use_fingerprint_to_authenticate_key),
-                            true);
-            if (useFingerprintPreference) {
-                fragment.setStage(
-                        FingerprintAuthenticationDialogFragment.Stage.FINGERPRINT);
-            } else {
-                fragment.setStage(
-                        FingerprintAuthenticationDialogFragment.Stage.PASSWORD);
-            }
+            fragment.setStage(
+                    FingerprintAuthenticationDialogFragment.Stage.FINGERPRINT);
+
             fragment.show(getFragmentManager(), DIALOG_FRAGMENT_TAG);
+            Timber.i("onCreate initCipher true");
         } else {
             // This happens if the lock screen has been disabled or a fingerprint got
             // enrolled. Thus show the dialog to authenticate with their password first
@@ -281,6 +250,8 @@ public class LoginActivity extends Activity implements FingerprintViewInterface 
             fragment.setStage(
                     FingerprintAuthenticationDialogFragment.Stage.NEW_FINGERPRINT_ENROLLED);
             fragment.show(getFragmentManager(), DIALOG_FRAGMENT_TAG);
+            Timber.i("onCreate initCipher false");
         }
     }
+
 }

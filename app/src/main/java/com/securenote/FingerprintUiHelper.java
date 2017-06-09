@@ -80,12 +80,7 @@ public class FingerprintUiHelper extends FingerprintManager.AuthenticationCallba
     public void onAuthenticationError(int errMsgId, CharSequence errString) {
         if (!mSelfCancelled) {
             showError(errString);
-            mIcon.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    mCallback.onError();
-                }
-            }, ERROR_TIMEOUT_MILLIS);
+            mIcon.postDelayed(() -> mCallback.onError(), ERROR_TIMEOUT_MILLIS);
         }
     }
 
@@ -108,12 +103,7 @@ public class FingerprintUiHelper extends FingerprintManager.AuthenticationCallba
                 mErrorTextView.getResources().getColor(R.color.success_color, null));
         mErrorTextView.setText(
                 mErrorTextView.getResources().getString(R.string.fingerprint_success));
-        mIcon.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                mCallback.onAuthenticated();
-            }
-        }, SUCCESS_DELAY_MILLIS);
+        mIcon.postDelayed(() -> mCallback.onAuthenticated(), SUCCESS_DELAY_MILLIS);
     }
 
     private void showError(CharSequence error) {
