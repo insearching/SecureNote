@@ -171,6 +171,7 @@ public class LoginActivity extends Activity implements FingerprintViewInterface 
             // then show the confirmation message.
             assert cryptoObject != null;
             tryEncrypt(cryptoObject.getCipher());
+
         } else {
             // Authentication happened with backup password. Just show the confirmation message.
             showConfirmation(null);

@@ -1,0 +1,15 @@
+Index: app/src/main/java/com/securenote/LoginActivity.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- app/src/main/java/com/securenote/LoginActivity.java	(revision 821d40e0b7480e5e1da35b6985b39df00078b3bb)
++++ app/src/main/java/com/securenote/LoginActivity.java	(revision f409c38f4d3213c997a610e11696b8c665dea62b)
+@@ -171,6 +171,7 @@
+             // then show the confirmation message.
+             assert cryptoObject != null;
+             tryEncrypt(cryptoObject.getCipher());
++
+         } else {
+             // Authentication happened with backup password. Just show the confirmation message.
+             showConfirmation(null);
